@@ -1,6 +1,6 @@
 Data:
-  data_root: ../data/VOCdevkit2012/VOC2012
-  base_data_root: ../data/base_annotation/pascal/
+  data_root:  ./data/VOC2012
+  base_data_root: ./data/base_annotation/pascal/
   train_list: ./lists/pascal/voc_sbd_merge_noduplicate.txt
   val_list: ./lists/pascal/val.txt
   classes: 2
@@ -19,11 +19,15 @@ Train:
   padding_label: 255
   # Dataset & Mode
   split: 0
-  shot: 1
+  # total shot num
+  shot: 5
+  # shot num supported by natural image 
+  true_data_shot: 1
+  aux_data_dir: '/path/to/your/pre-generated-auxsupport/'
   data_set: 'pascal'
   use_split_coco: False # True means FWB setting
   # Optimizer
-  batch_size: 2 # batch size for training (bs8 for 1GPU)
+  batch_size: 24 # batch size for training (bs8 for 1GPU)
   base_lr: 0.005
   epochs: 200
   start_epoch: 0

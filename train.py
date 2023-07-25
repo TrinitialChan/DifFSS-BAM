@@ -157,7 +157,7 @@ def main():
     if args.data_set == 'pascal' or args.data_set == 'coco':
         train_data = dataset.SemData(split=args.split, shot=args.shot, data_root=args.data_root, base_data_root=args.base_data_root, data_list=args.train_list, \
                                     transform=train_transform, transform_tri=train_transform_tri, mode='train', \
-                                    data_set=args.data_set, use_split_coco=args.use_split_coco)
+                                    data_set=args.data_set, use_split_coco=args.use_split_coco, args = args)
     train_sampler = DistributedSampler(train_data) if args.distributed else None
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, num_workers=args.workers, \
                                                 pin_memory=True, sampler=train_sampler, drop_last=True, \
@@ -185,7 +185,7 @@ def main():
         if args.data_set == 'pascal' or args.data_set == 'coco':
             val_data = dataset.SemData(split=args.split, shot=args.shot, data_root=args.data_root, base_data_root=args.base_data_root, data_list=args.val_list, \
                                     transform=val_transform, transform_tri=val_transform_tri, mode='val', \
-                                    data_set=args.data_set, use_split_coco=args.use_split_coco)                                   
+                                    data_set=args.data_set, use_split_coco=args.use_split_coco, args = args)                                   
         val_loader = torch.utils.data.DataLoader(val_data, batch_size=args.batch_size_val, shuffle=False, num_workers=args.workers, pin_memory=False, sampler=None)
 
 
@@ -341,10 +341,10 @@ def train(train_loader, val_loader, model, optimizer, epoch):
                         'Data {data_time.val:.3f} ({data_time.avg:.3f}) '
                         'Batch {batch_time.val:.3f} ({batch_time.avg:.3f}) '
                         'Remain {remain_time} '
-                        'MainLoss {main_loss_meter.val:.4f} '
-                        'AuxLoss1 {aux_loss_meter1.val:.4f} '                        
-                        'AuxLoss2 {aux_loss_meter2.val:.4f} '                        
-                        'Loss {loss_meter.val:.4f} '
+                        'MainLoss {main_loss_meter.val:.4f} ({main_loss_meter.avg:.4f})'
+                        'AuxLoss1 {aux_loss_meter1.val:.4f} ({aux_loss_meter1.avg:.4f})'                        
+                        'AuxLoss2 {aux_loss_meter2.val:.4f} ({aux_loss_meter2.avg:.4f})'                        
+                        'Loss {loss_meter.val:.4f} ({loss_meter.avg:.4f})'
                         'Accuracy {accuracy:.4f}.'.format(epoch+1, args.epochs, i + 1, len(train_loader),
                                                         batch_time=batch_time,
                                                         data_time=data_time,

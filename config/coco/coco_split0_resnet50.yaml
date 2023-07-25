@@ -1,6 +1,6 @@
 Data:
   data_root: ../data/MSCOCO2014
-  base_data_root: ../data/base_annotation/coco/
+  base_data_root: ../data/bam_base_anno/coco/
   train_list: ./lists/coco/train.txt
   val_list: ./lists/coco/val.txt
   classes: 2
@@ -19,13 +19,16 @@ Train:
   padding_label: 255
   # Dataset & Mode
   split: 0
-  shot: 1
+  # total shot num
+  shot: 5
+  # shot num supported by natural image 
+  aux_data_dir: '/path/to/your/pre-generated-auxsupport/'
   data_set: 'coco'
   use_split_coco: True # True means FWB setting
   # Optimizer
-  batch_size: 2 # batch size for training (bs8 for 1GPU)
+  batch_size: 8 # batch size for training (bs8 for 1GPU)
   base_lr: 0.005
-  epochs: 50
+  epochs: 200
   start_epoch: 0
   stop_interval: 75 # stop when the best result is not updated for "stop_interval" epochs
   index_split: -1 # index for determining the params group with 10x learning rate

@@ -91,7 +91,7 @@ class SemData(Dataset):
     def __init__(self, split=3, shot=1, data_root=None, base_data_root=None, data_list=None, data_set=None, use_split_coco=False, \
                         transform=None, transform_tri=None, mode='train', ann_type='mask', \
                         ft_transform=None, ft_aug_size=None, \
-                        ms_transform=None):
+                        ms_transform=None, args=None):
 
         assert mode in ['train', 'val', 'demo', 'finetune']
         assert data_set in ['pascal', 'coco']
@@ -103,10 +103,18 @@ class SemData(Dataset):
             self.num_classes = 20
         elif data_set == 'coco':
             self.num_classes = 80
+        
+        self.data_set = data_set
 
         self.mode = mode
         self.split = split  
+
         self.shot = shot
+
+        assert args is not None
+        self.aux_shot = args.shot - args.true_data_shot
+        self.aux_data_dir = args.aux_data_dir
+        
         self.data_root = data_root   
         self.base_data_root = base_data_root   
         self.ann_type = ann_type
@@ -254,13 +262,19 @@ class SemData(Dataset):
         support_image_path_list = []
         support_label_path_list = []
         support_idx_list = []
-        for k in range(self.shot):
+        # sample support list
+        for k in range(self.shot - self.aux_shot):
             support_idx = random.randint(1,num_file)-1
             support_image_path = image_path
             support_label_path = label_path
+            try_count = 0
             while((support_image_path == image_path and support_label_path == label_path) or support_idx in support_idx_list):
                 support_idx = random.randint(1,num_file)-1
-                support_image_path, support_label_path = file_class_chosen[support_idx]                
+                support_image_path, support_label_path = file_class_chosen[support_idx]       
+                try_count += 1
+                if  try_count  > 100:
+                    print(f'### sample failed, check cls {class_chosen}')
+                    break
             support_idx_list.append(support_idx)
             support_image_path_list.append(support_image_path)
             support_label_path_list.append(support_label_path)
@@ -273,7 +287,8 @@ class SemData(Dataset):
             subcls_list.append(self.sub_list.index(class_chosen))
         else:
             subcls_list.append(self.sub_val_list.index(class_chosen))        
-        for k in range(self.shot):  
+        # load true-support data
+        for k in range(self.shot - self.aux_shot):  
             support_image_path = support_image_path_list[k]
             support_label_path = support_label_path_list[k] 
             support_image = cv2.imread(support_image_path, cv2.IMREAD_COLOR)      
@@ -293,6 +308,54 @@ class SemData(Dataset):
             support_image_list_ori.append(support_image)
             support_label_list_ori.append(support_label)
             support_label_list_ori_mask.append(support_label_mask)
+        
+        H, W, C = support_image.shape
+
+
+        support_image_path = support_image_path_list[0]
+        support_label_path = support_label_path_list[0] 
+
+        if self.data_set == 'coco'  :
+            split_flag = str(support_image_path).split('/')[-2]
+            mainshot_fn =  split_flag + '/' + str(support_image_path).split('/')[-1][:-4]
+        else:
+            mainshot_fn = str(support_image_path).split('/')[-1][:-4]
+        
+        # load aux-support data
+        for k in range(self.aux_shot):  
+            curr_fn = self.aux_data_dir + mainshot_fn + f'_{class_chosen}_{k}.jpg'
+
+            if not os.path.exists(curr_fn):
+                curr_fn = self.aux_data_dir + mainshot_fn + f'_{class_chosen}_{k}.png'
+
+            if not os.path.exists(curr_fn):
+                print(f'###  file named: \'{curr_fn}\' not exist, fall back to main support')
+                support_image_list_ori.append(support_image_list_ori[0])
+                support_label_list_ori.append(support_label_list_ori[0])
+                support_label_list_ori_mask.append(support_label_list_ori_mask[0])
+                continue
+
+            support_image = cv2.imread(curr_fn, cv2.IMREAD_COLOR)      
+            support_image = cv2.resize(support_image, (W,H), interpolation=cv2.INTER_LINEAR)
+            support_image = cv2.cvtColor(support_image, cv2.COLOR_BGR2RGB)
+            support_image = np.float32(support_image)
+            support_label = cv2.imread(support_label_path, cv2.IMREAD_GRAYSCALE)
+            target_pix = np.where(support_label == class_chosen)
+            ignore_pix = np.where(support_label == 255)
+            support_label[:,:] = 0
+            support_label[target_pix[0],target_pix[1]] = 1 
+            
+            support_label, support_label_mask = transform_anns(support_label, self.ann_type)   # mask/bbox
+            support_label[ignore_pix[0],ignore_pix[1]] = 255
+            support_label_mask[ignore_pix[0],ignore_pix[1]] = 255
+            if support_image.shape[0] != support_label.shape[0] or support_image.shape[1] != support_label.shape[1]:
+                raise (RuntimeError("Support Image & label shape mismatch: " + support_image_path + " " + support_label_path + "\n"))            
+            support_image_list_ori.append(support_image)
+            support_label_list_ori.append(support_label)
+            support_label_list_ori_mask.append(support_label_mask)
+
+
+        
         assert len(support_label_list_ori) == self.shot and len(support_image_list_ori) == self.shot                    
         
         raw_image = image.copy()
